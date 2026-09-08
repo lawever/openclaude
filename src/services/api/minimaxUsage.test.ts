@@ -498,4 +498,30 @@ describe('getMiniMaxUsageUrls with active profile aliases (#2207 P2)', () => {
       'https://api.minimax.io/v1/api/openplatform/coding_plan/remains',
     ])
   })
+
+  test('MINIMAX_BASE_URL wins over an unrelated ANTHROPIC_BASE_URL proxy (#2207 P1 follow-up)', () => {
+    // Filter the alias chain by MiniMax-host recognition first. A private
+    // Anthropic-compatible proxy on ANTHROPIC_BASE_URL must not preempt an
+    // explicit MINIMAX_BASE_URL, or the China key would be sent to the
+    // overseas default.
+    process.env.ANTHROPIC_BASE_URL = 'https://my-anthropic-proxy.example/v1'
+    process.env.MINIMAX_BASE_URL = 'https://api.minimaxi.com/anthropic'
+
+    expect(getMiniMaxUsageUrls()).toEqual([
+      'https://api.minimaxi.com/v1/token_plan/remains',
+      'https://api.minimaxi.com/v1/api/openplatform/coding_plan/remains',
+    ])
+  })
+
+  test('OPENAI_BASE_URL takes precedence over an unrelated ANTHROPIC_BASE_URL when both are vendor-valid', () => {
+    // When both aliases resolve to MiniMax vendors, the higher-priority
+    // ANTHROPIC_BASE_URL still wins (existing behavior preserved).
+    process.env.ANTHROPIC_BASE_URL = 'https://api.minimax.io/anthropic'
+    process.env.OPENAI_BASE_URL = 'https://api.minimaxi.com/v1'
+
+    expect(getMiniMaxUsageUrls()).toEqual([
+      'https://api.minimax.io/v1/token_plan/remains',
+      'https://api.minimax.io/v1/api/openplatform/coding_plan/remains',
+    ])
+  })
 })

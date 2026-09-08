@@ -3664,3 +3664,29 @@ test('buildLaunchEnv strips inherited OPENAI_API_BASE for minimax-cn (#2207 P2 f
   assert.equal(env.ANTHROPIC_BASE_URL, 'https://api.minimaxi.com/anthropic')
   assert.equal(env.ANTHROPIC_API_KEY, 'minimax-cn-key')
 })
+
+test('buildLaunchEnv does not mutate the supplied processEnv (#2207 P2 follow-up)', async () => {
+  // Startup callers pass `process.env` directly. The MiniMax cleanup must
+  // copy the object before deleting keys so subsequent provider discovery
+  // and request code does not see a half-stripped environment.
+  const processEnv = {
+    MINIMAX_API_KEY: 'minimax-cn-key',
+    OPENAI_API_BASE: 'https://api.minimaxi.com/v1',
+    OPENAI_BASE_URL: 'https://api.minimaxi.com/v1',
+    ANTHROPIC_AUTH_TOKEN: 'stale-bearer',
+  }
+  const snapshot = { ...processEnv }
+
+  await buildLaunchEnv({
+    profile: 'minimax-cn',
+    persisted: {
+      profile: 'minimax-cn',
+      env: { MINIMAX_API_KEY: 'minimax-cn-key' },
+      createdAt: '2026-09-04T00:00:00.000Z',
+    },
+    goal: 'coding',
+    processEnv,
+  })
+
+  assert.deepEqual(processEnv, snapshot)
+})

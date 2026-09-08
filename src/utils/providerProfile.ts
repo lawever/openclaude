@@ -2114,15 +2114,22 @@ export async function buildLaunchEnv(options: {
       // ANTHROPIC_AUTH_TOKEN from a previous custom-bearer profile would
       // override x-api-key and break auth (#2207 P1). Explicitly drop it
       // before merging.
-      clearInheritedAnthropicAuthToken(processEnv)
+      //
+      // Copy processEnv first so callers passing process.env directly do
+      // not see `ANTHROPIC_AUTH_TOKEN`, `OPENAI_BASE_URL`, or
+      // `OPENAI_API_BASE` mutated on their original object (#2207 P2 +
+      // jatmn follow-up; provider discovery and request code reads these
+      // values after buildLaunchEnv returns).
+      const launchEnv = { ...processEnv }
+      clearInheritedAnthropicAuthToken(launchEnv)
       // An inherited OPENAI_BASE_URL or OPENAI_API_BASE would survive the
       // spread below and could be re-picked up by the OpenAI shim helper
       // or downstream clients (e.g. /usage), forwarding the China key to
       // an unintended endpoint after the Anthropic profile was applied
       // (#2207 P2 + jatmn follow-up).
-      delete processEnv.OPENAI_BASE_URL
-      delete processEnv.OPENAI_API_BASE
-      return { ...processEnv, ...minimaxProfileEnv }
+      delete launchEnv.OPENAI_BASE_URL
+      delete launchEnv.OPENAI_API_BASE
+      return { ...launchEnv, ...minimaxProfileEnv }
     }
   }
 

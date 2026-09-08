@@ -412,10 +412,14 @@ function getPromptCacheBreakProviderRoute(
   if (!activeRouteId) {
     return apiProvider
   }
-  if (SAFE_PROMPT_CACHE_PROVIDER_ROUTES.has(activeRouteId)) {
-    return activeRouteId
+  // Normalize minimax-cn to the legacy 'minimax' bucket so cache-break
+  // events record the China route under the same legacy category as
+  // overseas MiniMax (#2207 P1 follow-up).
+  const normalizedRouteId = activeRouteId === 'minimax-cn' ? 'minimax' : activeRouteId
+  if (SAFE_PROMPT_CACHE_PROVIDER_ROUTES.has(normalizedRouteId)) {
+    return normalizedRouteId
   }
-  return getTransportKindForRoute(activeRouteId) ?? apiProvider
+  return getTransportKindForRoute(normalizedRouteId) ?? apiProvider
 }
 
 function resolvePromptCacheBreakAPIProvider(

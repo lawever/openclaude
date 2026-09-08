@@ -86,31 +86,35 @@ function resolveConfiguredMiniMaxUsageBaseUrl(
     }
   }
 
-  // Resolve the active MiniMax URL across every alias, then translate the
-  // chat-shape URL into the quota /v1 root. Custom Anthropic-compatible
-  // proxies do not serve the MiniMax quota API, so chatBaseToQuotaBase
-  // returns null and we fall back to the region-routed default.
-  const fromEnv =
+  // Scan every alias in precedence order, but **only consider aliases
+  // whose hostname `chatBaseToQuotaBase` recognizes as a MiniMax vendor**.
+  // An unrelated Anthropic-compatible proxy (e.g. a private gateway) must
+  // not win over an explicit `MINIMAX_BASE_URL`, even when `ANTHROPIC_BASE_URL`
+  // is set first (#2207 P1 follow-up from CR; the China key would otherwise
+  // leak to the overseas default).
+  const aliases = [
+    process.env.ANTHROPIC_BASE_URL,
+    process.env.MINIMAX_BASE_URL,
+    process.env.OPENAI_BASE_URL,
+    process.env.OPENAI_API_BASE,
+  ]
+  for (const alias of aliases) {
+    const quotaBase = chatBaseToQuotaBase(alias)
+    if (quotaBase) {
+      return { baseUrl: quotaBase, usedDefault: false }
+    }
+  }
+
+  // No alias matched a MiniMax host. Pick the regional default based on
+  // whichever alias was highest in the precedence order so the user gets
+  // their expected region (or overseas if nothing was set at all).
+  const primaryAlias =
     process.env.ANTHROPIC_BASE_URL ??
     process.env.MINIMAX_BASE_URL ??
     process.env.OPENAI_BASE_URL ??
     process.env.OPENAI_API_BASE
-
-  const quotaBase = chatBaseToQuotaBase(fromEnv)
-  if (quotaBase) {
-    return { baseUrl: quotaBase, usedDefault: false }
-  }
-
-  if (!fromEnv?.trim()) {
-    return {
-      baseUrl: defaultBaseUrlForConfigured(fromEnv),
-      usedDefault: true,
-    }
-  }
-
-  // Non-MiniMax custom URL: respect its region for the default fallback.
   return {
-    baseUrl: defaultBaseUrlForConfigured(fromEnv),
+    baseUrl: defaultBaseUrlForConfigured(primaryAlias),
     usedDefault: true,
   }
 }
